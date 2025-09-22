@@ -4,7 +4,13 @@ from typing import Final
 import os
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, ConversationHandler
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    CallbackQueryHandler,
+    ConversationHandler,
+)
 
 # Environment variables
 TOKEN: Final = os.environ['BOT_TOKEN']
@@ -26,17 +32,14 @@ def track_message(chat_id, message_id):
     chat_messages[chat_id].append(message_id)
 
 
-async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE,
-                              chat_id: int,
-                              delay: int = DELETE_TIMER):
+async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int, delay: int = DELETE_TIMER):
     await asyncio.sleep(delay)
     for msg_id in chat_messages.get(chat_id, []):
         try:
-            await context.bot.delete_message(chat_id=chat_id,
-                                             message_id=msg_id)
+            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
         except:
-            pass  # message might already be deleted
-    chat_messages.pop(chat_id, None)  # clear after deletion
+            pass
+    chat_messages.pop(chat_id, None)
 
 
 # Step 1: /start command
@@ -46,22 +49,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     track_message(update.effective_chat.id, msg1.message_id)
 
-    keyboard = [[
-        InlineKeyboardButton("CUET Registration Form",
-                             url=CUET_REGISTRATION_FORM)
-    ]]
+    keyboard = [[InlineKeyboardButton("CUET Registration Form", url=CUET_REGISTRATION_FORM)]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    msg2 = await update.message.reply_text(
-        "Please fill out this form to continue 😉", reply_markup=reply_markup)
+    msg2 = await update.message.reply_text("Please fill out this form to continue 😉", reply_markup=reply_markup)
     track_message(update.effective_chat.id, msg2.message_id)
 
-    keyboard_done = [[
-        InlineKeyboardButton("Yes ✅", callback_data="yes"),
-        InlineKeyboardButton("No ❌", callback_data="no")
-    ]]
+    keyboard_done = [[InlineKeyboardButton("Yes ✅", callback_data="yes"),
+                      InlineKeyboardButton("No ❌", callback_data="no")]]
     reply_markup_done = InlineKeyboardMarkup(keyboard_done)
-    msg3 = await update.message.reply_text("Have you completed the form?",
-                                           reply_markup=reply_markup_done)
+    msg3 = await update.message.reply_text("Have you completed the form?", reply_markup=reply_markup_done)
     track_message(update.effective_chat.id, msg3.message_id)
 
     return STEP2
@@ -73,38 +69,21 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "yes":
-        msg = await query.edit_message_text(
-            "Great! Now choose your service unit 👇")
+        msg = await query.edit_message_text("Great! Now choose your service unit 👇")
     else:
-        msg = await query.edit_message_text(
-            "Please complete the form first before proceeding.")
+        msg = await query.edit_message_text("Please complete the form first before proceeding.")
 
     track_message(query.effective_chat.id, query.message.message_id)
 
     keyboard_units = [
-        [
-            InlineKeyboardButton("BFC⛪", callback_data="bfc"),
-            InlineKeyboardButton("Media📸", callback_data="media")
-        ],
-        [
-            InlineKeyboardButton("Living Epistles📜",
-                                 callback_data="living_epistles"),
-            InlineKeyboardButton("True Worshippers🎵",
-                                 callback_data="true_worshippers")
-        ],
-        [
-            InlineKeyboardButton("Welfare💖", callback_data="welfare"),
-            InlineKeyboardButton("Database 📝", callback_data="database")
-        ],
-        [
-            InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"),
-            InlineKeyboardButton("Not sure yet", callback_data="not_sure")
-        ]
+        [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
+        [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
+         InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
+        [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
+        [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
     ]
     reply_markup_units = InlineKeyboardMarkup(keyboard_units)
-    msg2 = await query.message.reply_text(
-        "Select your service unit from below:",
-        reply_markup=reply_markup_units)
+    msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
     track_message(query.effective_chat.id, msg2.message_id)
 
     return STEP3
@@ -127,11 +106,9 @@ async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     chosen_unit = selection_map.get(query.data, query.data)
-    msg = await query.edit_message_text(
-        f"So you want to join **{chosen_unit}** ✅")
+    msg = await query.edit_message_text(f"So you want to join **{chosen_unit}** ✅")
     track_message(query.effective_chat.id, query.message.message_id)
 
-    # Start the self-destruct timer for all chat messages
     asyncio.create_task(delete_all_messages(context, query.effective_chat.id))
 
     return ConversationHandler.END
@@ -165,6 +142,7 @@ def run_flask():
 
 threading.Thread(target=run_flask).start()
 
+
 # --- Run Telegram bot ---
 if __name__ == "__main__":
     bot_app = Application.builder().token(TOKEN).build()
@@ -172,10 +150,12 @@ if __name__ == "__main__":
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
         states={
-            STEP2: [CallbackQueryHandler(step2)],
-            STEP3: [CallbackQueryHandler(step3)]
+            STEP2: [CallbackQueryHandler(step2, per_message=True)],
+            STEP3: [CallbackQueryHandler(step3, per_message=True)]
         },
-        fallbacks=[CommandHandler("cancel", cancel)])
+        fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=True  # <-- ensure all messages are tracked
+    )
 
     bot_app.add_handler(conv_handler)
     bot_app.add_error_handler(error)
