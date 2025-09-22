@@ -154,7 +154,7 @@ if __name__ == "__main__":
             STEP3: [CallbackQueryHandler(step3)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=True  # <-- ensures all messages are tracked
+        per_chat_data=True # Corrected from per_message=True
     )
 
     bot_app.add_handler(conv_handler)
