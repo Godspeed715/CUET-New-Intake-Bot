@@ -13,10 +13,10 @@ from telegram.ext import (
 )
 
 # Environment variables
-TOKEN="8175830217:AAGLvST7qsqZXXfaoiq0oGZ5aTJFyglHfC4"
-BOT_USERNAME="@CUET_NEW_INTAKE_BOT"
-CUET_REGISTRATION_FORM="https://forms.gle/d7CdSUdVdwYwJB397"
-CUET_GC_LINK="https://t.me/+Nx2jAnLnH40wNzdk"
+TOKEN: Final = os.environ['BOT_TOKEN']
+BOT_USERNAME: Final = os.environ['BOT_USERNAME']
+CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
+CUET_GC_LINK = os.environ['CUET_GC_LINK']
 
 # Constants
 STEP1, STEP2, STEP3 = range(3)
