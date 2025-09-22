@@ -84,7 +84,6 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
         track_message(query.message.chat_id, msg2.message_id)
 
         return STEP3
-    else:
         # msg = await query.edit_message_text("Please complete the form first before proceeding.")
         # track_message(query.message.chat_id, query.message.message_id)
         # asyncio.create_task(delete_all_messages(context, query.message.chat_id))
