@@ -13,10 +13,14 @@ from telegram.ext import (
 )
 
 # Environment variables
-TOKEN: Final = os.environ['BOT_TOKEN']
-BOT_USERNAME: Final = os.environ['BOT_USERNAME']
-CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
-CUET_GC_LINK = os.environ['CUET_GC_LINK']
+# TOKEN: Final = os.environ['BOT_TOKEN']
+# BOT_USERNAME: Final = os.environ['BOT_USERNAME']
+# CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
+# CUET_GC_LINK = os.environ['CUET_GC_LINK']
+TOKEN="8175830217:AAGLvST7qsqZXXfaoiq0oGZ5aTJFyglHfC4"
+BOT_USERNAME="@CUET_NEW_INTAKE_BOT"
+CUET_REGISTRATION_FORM="https://forms.gle/d7CdSUdVdwYwJB397"
+CUET_GC_LINK="https://t.me/+Nx2jAnLnH40wNzdk"
 
 # Constants
 STEP1, STEP2, STEP3 = range(3)
@@ -33,12 +37,16 @@ def track_message(chat_id, message_id):
 
 
 async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int, delay: int = DELETE_TIMER):
+    """Deletes all tracked messages in a chat after a delay."""
     await asyncio.sleep(delay)
     for msg_id in chat_messages.get(chat_id, []):
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-        except:
-            pass
+        except Exception as e:
+            # This handles cases where a message has already been deleted,
+            # or the bot doesn't have permissions to delete it.
+            print(f"Failed to delete message {msg_id} in chat {chat_id}: {e}")
+    # Clear the list of messages for this chat after trying to delete them all
     chat_messages.pop(chat_id, None)
 
 
@@ -107,19 +115,20 @@ async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     chosen_unit = selection_map.get(query.data, query.data)
-    msg = await query.edit_message_text(f"So you want to join **{chosen_unit}** ✅")
-    track_message(query.effective_chat.id, query.message.message_id)
+    msg = await query.edit_message_text(f"So you want to join {chosen_unit} ✅")
+    track_message(query.message.chat_id, query.message.message_id)
 
-    asyncio.create_task(delete_all_messages(context, query.effective_chat.id))
+    asyncio.create_task(delete_all_messages(context, query.message.chat_id))
 
     return ConversationHandler.END
 
 
-# Fallback / cancel
+
+# --- In cancel function ---
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("Conversation cancelled ❌")
     track_message(update.effective_chat.id, msg.message_id)
-    asyncio.create_task(delete_all_messages(context, update.effective_chat.id))
+    asyncio.create_task(delete_all_messages(context, update.effective_chat.id)) # Corrected
     return ConversationHandler.END
 
 # Error handler
