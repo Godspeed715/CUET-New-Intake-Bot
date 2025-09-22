@@ -13,10 +13,10 @@ from telegram.ext import (
 )
 
 # Environment variables
-TOKEN: Final = os.environ['BOT_TOKEN']
-BOT_USERNAME: Final = os.environ['BOT_USERNAME']
-CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
-CUET_GC_LINK = os.environ['CUET_GC_LINK']
+TOKEN="8175830217:AAGLvST7qsqZXXfaoiq0oGZ5aTJFyglHfC4"
+BOT_USERNAME="@CUET_NEW_INTAKE_BOT"
+CUET_REGISTRATION_FORM="https://forms.gle/d7CdSUdVdwYwJB397"
+CUET_GC_LINK="https://t.me/+Nx2jAnLnH40wNzdk"
 
 # Constants
 STEP1, STEP2, STEP3 = range(3)
@@ -70,23 +70,25 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "yes":
         msg = await query.edit_message_text("Great! Now choose your service unit 👇")
+        track_message(query.message.chat_id, query.message.message_id)
+
+        keyboard_units = [
+            [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
+            [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
+             InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
+            [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
+            [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
+        ]
+        reply_markup_units = InlineKeyboardMarkup(keyboard_units)
+        msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
+        track_message(query.message.chat_id, msg2.message_id)
+
+        return STEP3
     else:
-        msg = await query.edit_message_text("Please complete the form first before proceeding.")
-
-    track_message(query.effective_chat.id, query.message.message_id)
-
-    keyboard_units = [
-        [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
-        [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
-         InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
-        [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
-        [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
-    ]
-    reply_markup_units = InlineKeyboardMarkup(keyboard_units)
-    msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
-    track_message(query.effective_chat.id, msg2.message_id)
-
-    return STEP3
+        # msg = await query.edit_message_text("Please complete the form first before proceeding.")
+        # track_message(query.message.chat_id, query.message.message_id)
+        # asyncio.create_task(delete_all_messages(context, query.message.chat_id))
+        # return ConversationHandler.END
 
 
 # Step 3: Handle service unit selection
@@ -121,11 +123,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     asyncio.create_task(delete_all_messages(context, update.effective_chat.id))
     return ConversationHandler.END
 
-
 # Error handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Update {update} caused error {context.error}")
-
 
 # --- Keep-alive Flask server ---
 flask_app = Flask('')
@@ -154,7 +154,7 @@ if __name__ == "__main__":
             STEP3: [CallbackQueryHandler(step3)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        per_chat_data=True # Corrected from per_message=True
+        per_chat=True
     )
 
     bot_app.add_handler(conv_handler)
