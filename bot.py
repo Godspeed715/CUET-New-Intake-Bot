@@ -150,11 +150,11 @@ if __name__ == "__main__":
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
         states={
-            STEP2: [CallbackQueryHandler(step2, per_message=True)],
-            STEP3: [CallbackQueryHandler(step3, per_message=True)]
+            STEP2: [CallbackQueryHandler(step2)],
+            STEP3: [CallbackQueryHandler(step3)]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=True  # <-- ensure all messages are tracked
+        per_message=True  # <-- ensures all messages are tracked
     )
 
     bot_app.add_handler(conv_handler)
