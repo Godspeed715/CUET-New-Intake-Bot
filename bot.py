@@ -6,7 +6,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
 
 # --- Environment variables ---
-TOKEN = os.environ['BOT_TOKEN']
+TOKEN = os.environ['TOKEN']
 BOT_USERNAME = os.environ['BOT_USERNAME']
 CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
 CUET_GC_LINK = os.environ['CUET_GC_LINK']
