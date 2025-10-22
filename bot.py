@@ -107,10 +107,8 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
         track_message(query.message.chat_id, msg2.message_id)
 
         return STEP3
-            # msg = await query.edit_message_text("Please complete the form first before proceeding.")
-        # track_message(query.message.chat_id, query.message.message_id)
-        # asyncio.create_task(delete_all_messages(context, query.message.chat_id))
-        # return ConversationHandler.END
+        
+
 # Step 3: Handle service unit selection
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -131,24 +129,25 @@ async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await query.edit_message_text(f"So you want to join {chosen_unit} ✅")
     track_message(query.message.chat_id, query.message.message_id)
 
-    # Send CUET group link as final message, if a link exists
+    # Buttons for group and registration form
+    buttons = []
     group_link = GC_LINKS.get(query.data)
-    if group_link:  # Only send if the link is not None
-        keyboard_group = [[InlineKeyboardButton(f"Join {chosen_unit} Group 👥", url=group_link)]]
-        reply_markup_group = InlineKeyboardMarkup(keyboard_group)
-        msg_group = await query.message.reply_text(
-            f"Finally, join {chosen_unit} group to stay updated:\nPs: This link chat will delete in 2mins.",
-            reply_markup=reply_markup_group
-        )
-        track_message(query.message.chat_id, msg_group.message_id)
-    else:
-        msg_group = await query.message.reply_text(
-            f"Next time pick a sub unit.\nPs: This link chat will delete in 2mins.")
-        track_message(query.message.chat_id, msg_group.message_id)
+    if group_link:
+        buttons.append([InlineKeyboardButton(f"{chosen_unit} Group 👥", url=group_link)])
+    
+    # Always add CUET Registration Form button
+    buttons.append([InlineKeyboardButton("CUET GC 📝", url=CUET_GC_LINK)])
+
+    reply_markup = InlineKeyboardMarkup(buttons)
+    msg_group = await query.message.reply_text(
+        f"Finally, join the CUET GC and your subunit GC:\nPs: This chat will delete in 2 mins.",
+        reply_markup=reply_markup
+    )
+    track_message(query.message.chat_id, msg_group.message_id)
 
     asyncio.create_task(delete_all_messages(context, query.message.chat_id))
-
     return ConversationHandler.END
+
 
 
 
