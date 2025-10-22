@@ -39,7 +39,7 @@ GC_LINKS = {
 }
 # Constants
 STEP1, STEP2, STEP3 = range(3)
-DELETE_TIMER = 5  # seconds after last chat to delete all messages
+DELETE_TIMER = 120  # seconds after last chat to delete all messages
 
 # Store messages per chat
 chat_messages = {}  # {chat_id: [message_id, ...]}
