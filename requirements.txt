@@ -1,3 +1,3 @@
-python-telegram-bot==20.3
-flask[async]
+Flask==3.0.3
+python-telegram-bot==20.6
 typing-extensions
