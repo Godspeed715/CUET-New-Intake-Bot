@@ -1,121 +1,84 @@
-
-from flask import Flask
-import threading
-from typing import Final
+from flask import Flask, request
 import os
+from telegram import Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-    CallbackQueryHandler,
-    ConversationHandler,
-)
 
-# Environment variables
-TOKEN: Final = os.environ['BOT_TOKEN']
-BOT_USERNAME: Final = os.environ['BOT_USERNAME']
+# --- Environment variables ---
+TOKEN = os.environ['BOT_TOKEN']
+BOT_USERNAME = os.environ['BOT_USERNAME']
 CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
 CUET_GC_LINK = os.environ['CUET_GC_LINK']
 
-# Constants
-STEP1, STEP2, STEP3 = range(3)
-DELETE_TIMER = 5  # seconds after last chat to delete all messages
+STEP2, STEP3 = range(2)
+DELETE_TIMER = 5
+chat_messages = {}
 
-# Store messages per chat
-chat_messages = {}  # {chat_id: [message_id, ...]}
-
-
+# --- Helper functions ---
 def track_message(chat_id, message_id):
-    if chat_id not in chat_messages:
-        chat_messages[chat_id] = []
-    chat_messages[chat_id].append(message_id)
-
+    chat_messages.setdefault(chat_id, []).append(message_id)
 
 async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int, delay: int = DELETE_TIMER):
     await asyncio.sleep(delay)
     for msg_id in chat_messages.get(chat_id, []):
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-        except:
+        except Exception:
             pass
     chat_messages.pop(chat_id, None)
 
-
-# Step 1: /start command
+# --- Bot logic ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg1 = await update.message.reply_text(
-        "Hello there😊! You must be aspiring to join CUET (Covenant University Evangelical Team)😁."
-    )
+    msg1 = await update.message.reply_text("Hello there😊! You must be aspiring to join CUET😁.")
     track_message(update.effective_chat.id, msg1.message_id)
 
-    keyboard = [[InlineKeyboardButton("CUET Registration Form", url=CUET_REGISTRATION_FORM)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    msg2 = await update.message.reply_text("Please fill out this form to continue 😉", reply_markup=reply_markup)
+    form_btn = [[InlineKeyboardButton("CUET Registration Form", url=CUET_REGISTRATION_FORM)]]
+    msg2 = await update.message.reply_text("Please fill out this form to continue 😉",
+                                           reply_markup=InlineKeyboardMarkup(form_btn))
     track_message(update.effective_chat.id, msg2.message_id)
 
-    keyboard_done = [[InlineKeyboardButton("Yes ✅", callback_data="yes"),
-                      InlineKeyboardButton("No ❌", callback_data="no")]]
-    reply_markup_done = InlineKeyboardMarkup(keyboard_done)
-    msg3 = await update.message.reply_text("Have you completed the form?", reply_markup=reply_markup_done)
+    confirm_btns = [[InlineKeyboardButton("Yes ✅", callback_data="yes"),
+                     InlineKeyboardButton("No ❌", callback_data="no")]]
+    msg3 = await update.message.reply_text("Have you completed the form?",
+                                           reply_markup=InlineKeyboardMarkup(confirm_btns))
     track_message(update.effective_chat.id, msg3.message_id)
-
     return STEP2
 
 
-# Step 2: Handle Yes/No
 async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "yes":
-        msg = await query.edit_message_text("Great! Now choose your service unit 👇")
+        await query.edit_message_text("Great! Now choose your service unit 👇")
     else:
-        msg = await query.edit_message_text("Please complete the form first before proceeding.")
-
+        await query.edit_message_text("Please complete the form first before proceeding.")
     track_message(query.effective_chat.id, query.message.message_id)
 
-    keyboard_units = [
+    units = [
         [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
         [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
          InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
         [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
         [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
     ]
-    reply_markup_units = InlineKeyboardMarkup(keyboard_units)
-    msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
+    msg2 = await query.message.reply_text("Select your service unit from below:",
+                                          reply_markup=InlineKeyboardMarkup(units))
     track_message(query.effective_chat.id, msg2.message_id)
-
     return STEP3
 
 
-# Step 3: Handle service unit selection
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    selection_map = {
-        "bfc": "BFC⛪",
-        "media": "Media📸",
-        "living_epistles": "Living Epistles📜",
-        "true_worshippers": "True Worshippers🎵",
-        "welfare": "Welfare💖",
-        "database": "Database 📝",
-        "follow_up": "Follow Up🤗",
-        "not_sure": "Not sure yet"
-    }
-
-    chosen_unit = selection_map.get(query.data, query.data)
-    msg = await query.edit_message_text(f"So you want to join **{chosen_unit}** ✅")
+    chosen = query.data.replace("_", " ").title()
+    await query.edit_message_text(f"So you want to join **{chosen}** ✅", parse_mode="Markdown")
     track_message(query.effective_chat.id, query.message.message_id)
-
     asyncio.create_task(delete_all_messages(context, query.effective_chat.id))
-
     return ConversationHandler.END
 
 
-# Fallback / cancel
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("Conversation cancelled ❌")
     track_message(update.effective_chat.id, msg.message_id)
@@ -123,41 +86,31 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-# Error handler
-async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Update {update} caused error {context.error}")
+# --- Flask setup for webhook ---
+app = Flask(__name__)
+telegram_app = Application.builder().token(TOKEN).build()
 
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("start", start_command)],
+    states={STEP2: [CallbackQueryHandler(step2)], STEP3: [CallbackQueryHandler(step3)]},
+    fallbacks=[CommandHandler("cancel", cancel)]
+)
+telegram_app.add_handler(conv_handler)
 
-# --- Keep-alive Flask server ---
-flask_app = Flask('')
-
-
-@flask_app.route('/')
+@app.route("/")
 def home():
-    return "Bot is alive!"
+    return "Bot is running!", 200
+
+@app.route(f"/{TOKEN}", methods=["POST"])
+async def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    await telegram_app.process_update(update)
+    return "ok", 200
 
 
-def run_flask():
-    flask_app.run(host='0.0.0.0', port=8080)
-
-
-threading.Thread(target=run_flask).start()
-
-
-# --- Run Telegram bot ---
 if __name__ == "__main__":
-    bot_app = Application.builder().token(TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start_command)],
-        states={
-            STEP2: [CallbackQueryHandler(step2)],
-            STEP3: [CallbackQueryHandler(step3)]
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=True  # <-- ensures all messages are tracked
+    telegram_app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        webhook_url=f"https://{os.environ.get('RENDER_EXTERNAL_URL', 'your-app.onrender.com')}/{TOKEN}"
     )
-
-    bot_app.add_handler(conv_handler)
-    bot_app.add_error_handler(error)
-    bot_app.run_polling()
