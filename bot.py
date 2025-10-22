@@ -72,21 +72,19 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "yes":
         await query.edit_message_text("Great! Now choose your service unit 👇")
-    else:
-        await query.edit_message_text("Please complete the form first before proceeding.")
 
-    units = [
-        [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
-        [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
-         InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
-        [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
-        [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
-    ]
-    msg2 = await query.message.reply_text("Select your service unit from below:",
-                                          reply_markup=InlineKeyboardMarkup(units))
-    track_message(query.message.chat_id, msg2.message_id)
+        units = [
+            [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
+            [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
+            InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
+            [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
+            [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
+        ]
+        msg2 = await query.message.reply_text("Select your service unit from below:",
+                                            reply_markup=InlineKeyboardMarkup(units))
+        track_message(query.message.chat_id, msg2.message_id)
 
-    return STEP3
+        return STEP3
 
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
