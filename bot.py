@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Environment Variables ---
-TOKEN = os.environ.get("BOT_TOKEN")
+TOKEN = os.environ.get("TOKEN")
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "YourBot")
 CUET_REGISTRATION_FORM = os.environ.get("CUET_REGISTRATION_FORM", "https://example.com/form")
 CUET_GC_LINK = os.environ.get("CUET_GC_LINK", "https://t.me/example")
