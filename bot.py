@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 # Environment variables
-TOKEN: Final = os.environ['BOT_TOKEN']
+TOKEN: Final = os.environ['TOKEN']
 BOT_USERNAME: Final = os.environ['BOT_USERNAME']
 CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
 CUET_GC_LINK = os.environ['CUET_GC_LINK']
@@ -145,11 +145,12 @@ def run_flask():
     flask_app.run(host='0.0.0.0', port=8080)
 
 
-threading.Thread(target=run_flask, daemon=True).start()
+
 
 
 # --- Run Telegram bot ---
 if __name__ == "__main__":
+    threading.Thread(target=run_flask, daemon=True).start()
     bot_app = Application.builder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
