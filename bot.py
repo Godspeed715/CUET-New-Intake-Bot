@@ -65,20 +65,16 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     if query.data == "yes":
         await query.edit_message_text("Great! Now choose your service unit 👇")
-    else:
-        await query.edit_message_text("Please complete the form first before proceeding.")
-    track_message(query.effective_chat.id, query.message.message_id)
-
-    units = [
-        [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
-        [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
-         InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
-        [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
-        [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
-    ]
-    msg2 = await query.message.reply_text("Select your service unit from below:",
-                                          reply_markup=InlineKeyboardMarkup(units))
-    track_message(update.effective_chat.id, msg2.message_id)
+        units = [
+            [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
+            [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
+            InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
+            [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
+            [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
+        ]
+        msg2 = await query.message.reply_text("Select your service unit from below:",
+                                            reply_markup=InlineKeyboardMarkup(units))
+        track_message(update.effective_chat.id, msg2.message_id)
     return STEP3
 
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -122,7 +118,6 @@ if __name__ == "__main__":
         entry_points=[CommandHandler("start", start_command)],
         states={STEP2: [CallbackQueryHandler(step2)], STEP3: [CallbackQueryHandler(step3)]},
         fallbacks=[CommandHandler("cancel", cancel)],
-        per_message=True
     )
     bot_app.add_handler(conv_handler)
     bot_app.add_error_handler(error)
