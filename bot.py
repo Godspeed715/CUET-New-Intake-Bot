@@ -138,14 +138,14 @@ async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
         buttons.append([InlineKeyboardButton(f"{chosen_unit} Group 👥", url=group_link)])
     
     # Declare message
-    meassage = f"Finally, join the CUET GC and your subunit GC.\nPs: This chat will delete in 2 mins."  if (group_link) else f"Finally, join the CUET GC and next time join a subunit.\nPs: This chat will delete in 2 mins." 
+    message = f"Finally, join the CUET GC and your subunit GC.\nPs: This chat will delete in 2 mins."  if (group_link) else f"Finally, join the CUET GC and next time join a subunit.\nPs: This chat will delete in 2 mins." 
 
     # Always add CUET Registration Form button
     buttons.append([InlineKeyboardButton("CUET GC 📝", url=CUET_GC_LINK)])
 
     reply_markup = InlineKeyboardMarkup(buttons)
     msg_group = await query.message.reply_text(
-        f"Finally, join the CUET GC and your subunit GC:\nPs: This chat will delete in 2 mins.",
+        message,
         reply_markup=reply_markup
     )
     track_message(query.message.chat_id, msg_group.message_id)
