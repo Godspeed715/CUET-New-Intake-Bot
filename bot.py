@@ -12,13 +12,31 @@ from telegram.ext import (
     ConversationHandler,
 )
 
+
+
 # Environment variables
-TOKEN: Final = os.environ['TOKEN']
-BOT_USERNAME: Final = os.environ['BOT_USERNAME']
-CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
-CUET_GC_LINK = os.environ['CUET_GC_LINK']
+TOKEN = os.environ.get("TOKEN")
+BOT_USERNAME = os.environ.get("BOT_USERNAME", "YourBot")
+CUET_REGISTRATION_FORM = os.environ.get("CUET_REGISTRATION_FORM", "https://example.com/form")
+CUET_GC_LINK = os.environ.get("CUET_GC_LINK", "https://t.me/example")
+CUET_BFC_GC_LINK = os.environ.get("CUET_BFC_GC_LINK")
+CUET_DATABASE_GC_LINK = os.environ.get("CUET_DATABASE_GC_LINK")
+CUET_EPISTLES_GC_LINK = os.environ.get("CUET_EPISTLES_GC_LINK")
+CUET_FOLLOWUP_GC_LINK = os.environ.get("CUET_FOLLOWUP_GC_LINK")
+CUET_MEDIA_GC_LINK = os.environ.get("CUET_MEDIA_GC_LINK")
+CUET_WELFARE_GC_LINK = os.environ.get("CUET_WELFARE_GC_LINK")
+CUET_WORSHIPPERS_GC_LINK = os.environ.get("CUET_WORSHIPPERS_GC_LINK")
 
-
+# Group links
+GC_LINKS = {
+    "bfc": CUET_BFC_GC_LINK,
+    "media": CUET_MEDIA_GC_LINK,
+    "living_epistles": CUET_EPISTLES_GC_LINK,
+    "true_worshippers": CUET_WORSHIPPERS_GC_LINK,
+    "welfare": CUET_WELFARE_GC_LINK,
+    "database": CUET_DATABASE_GC_LINK,
+    "follow_up": CUET_FOLLOWUP_GC_LINK,
+}
 # Constants
 STEP1, STEP2, STEP3 = range(3)
 DELETE_TIMER = 5  # seconds after last chat to delete all messages
@@ -77,24 +95,22 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = await query.edit_message_text("Great! Now choose your service unit 👇")
         track_message(query.message.chat_id, query.message.message_id)
     
-    keyboard_units = [
-        [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
-        [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
-            InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
-        [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
-        [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
-    ]
-    reply_markup_units = InlineKeyboardMarkup(keyboard_units)
-    msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
-    track_message(query.message.chat_id, msg2.message_id)
+        keyboard_units = [
+            [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
+            [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
+                InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
+            [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
+            [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
+        ]
+        reply_markup_units = InlineKeyboardMarkup(keyboard_units)
+        msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
+        track_message(query.message.chat_id, msg2.message_id)
 
-    return STEP3
-        # msg = await query.edit_message_text("Please complete the form first before proceeding.")
+        return STEP3
+            # msg = await query.edit_message_text("Please complete the form first before proceeding.")
         # track_message(query.message.chat_id, query.message.message_id)
         # asyncio.create_task(delete_all_messages(context, query.message.chat_id))
         # return ConversationHandler.END
-
-
 # Step 3: Handle service unit selection
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -115,9 +131,25 @@ async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await query.edit_message_text(f"So you want to join {chosen_unit} ✅")
     track_message(query.message.chat_id, query.message.message_id)
 
+    # Send CUET group link as final message, if a link exists
+    group_link = GC_LINKS.get(query.data)
+    if group_link:  # Only send if the link is not None
+        keyboard_group = [[InlineKeyboardButton(f"Join {chosen_unit} Group 👥", url=group_link)]]
+        reply_markup_group = InlineKeyboardMarkup(keyboard_group)
+        msg_group = await query.message.reply_text(
+            f"Finally, join {chosen_unit} group to stay updated:\nPs: This link chat will delete in 2mins.",
+            reply_markup=reply_markup_group
+        )
+        track_message(query.message.chat_id, msg_group.message_id)
+    else:
+        msg_group = await query.message.reply_text(
+            f"Next time pick a sub unit.\nPs: This link chat will delete in 2mins.")
+        track_message(query.message.chat_id, msg_group.message_id)
+
     asyncio.create_task(delete_all_messages(context, query.message.chat_id))
 
     return ConversationHandler.END
+
 
 
 
