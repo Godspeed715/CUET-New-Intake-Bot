@@ -1,142 +1,167 @@
 from flask import Flask
 import threading
+from typing import Final
 import os
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
+    ContextTypes,
     CallbackQueryHandler,
     ConversationHandler,
-    ContextTypes,
 )
-import logging
 
-# --- Logging ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Environment variables
+TOKEN: Final = os.environ['BOT_TOKEN']
+BOT_USERNAME: Final = os.environ['BOT_USERNAME']
+CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
+CUET_GC_LINK = os.environ['CUET_GC_LINK']
 
-# --- Environment Variables ---
-TOKEN = os.environ.get("TOKEN")
-BOT_USERNAME = os.environ.get("BOT_USERNAME", "YourBot")
-CUET_REGISTRATION_FORM = os.environ.get("CUET_REGISTRATION_FORM", "https://example.com/form")
-CUET_GC_LINK = os.environ.get("CUET_GC_LINK", "https://t.me/example")
 
-if not TOKEN:
-    raise ValueError("BOT_TOKEN environment variable is required.")
+# Constants
+STEP1, STEP2, STEP3 = range(3)
+DELETE_TIMER = 5  # seconds after last chat to delete all messages
 
-# --- Constants ---
-STEP2, STEP3 = range(2)
-DELETE_TIMER = 5  # seconds
-chat_messages = {}
+# Store messages per chat
+chat_messages = {}  # {chat_id: [message_id, ...]}
 
-# --- Helper Functions ---
+
 def track_message(chat_id, message_id):
-    chat_messages.setdefault(chat_id, []).append(message_id)
+    if chat_id not in chat_messages:
+        chat_messages[chat_id] = []
+    chat_messages[chat_id].append(message_id)
 
-async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+
+async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int, delay: int = DELETE_TIMER):
+    """Deletes all tracked messages in a chat after a delay."""
+    await asyncio.sleep(delay)
     for msg_id in chat_messages.get(chat_id, []):
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
         except Exception as e:
-            logger.warning(f"Failed to delete message {msg_id} in chat {chat_id}: {e}")
+            # This handles cases where a message has already been deleted,
+            # or the bot doesn't have permissions to delete it.
+            print(f"Failed to delete message {msg_id} in chat {chat_id}: {e}")
+    # Clear the list of messages for this chat after trying to delete them all
     chat_messages.pop(chat_id, None)
 
-def schedule_delete(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    """Schedules deletion after DELETE_TIMER seconds using JobQueue."""
-    async def job(ctx: ContextTypes.DEFAULT_TYPE):
-        await delete_all_messages(ctx, chat_id)
 
-    context.job_queue.run_once(job, when=DELETE_TIMER)
-
-
-# --- Bot Handlers ---
+# Step 1: /start command
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg1 = await update.message.reply_text("Hello there😊! You must be aspiring to join CUET😁.")
+    msg1 = await update.message.reply_text(
+        "Hello there😊! You must be aspiring to join CUET (Covenant University Evangelical Team)😁."
+    )
     track_message(update.effective_chat.id, msg1.message_id)
 
-    form_btn = [[InlineKeyboardButton("CUET Registration Form", url=CUET_REGISTRATION_FORM)]]
-    msg2 = await update.message.reply_text("Please fill out this form to continue 😉",
-                                           reply_markup=InlineKeyboardMarkup(form_btn))
+    keyboard = [[InlineKeyboardButton("CUET Registration Form", url=CUET_REGISTRATION_FORM)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    msg2 = await update.message.reply_text("Please fill out this form to continue 😉", reply_markup=reply_markup)
     track_message(update.effective_chat.id, msg2.message_id)
 
-    confirm_btns = [[InlineKeyboardButton("Yes ✅", callback_data="yes"),
-                     InlineKeyboardButton("No ❌", callback_data="no")]]
-    msg3 = await update.message.reply_text("Have you completed the form?",
-                                           reply_markup=InlineKeyboardMarkup(confirm_btns))
+    keyboard_done = [[InlineKeyboardButton("Yes ✅", callback_data="yes"),
+                      InlineKeyboardButton("No ❌", callback_data="no")]]
+    reply_markup_done = InlineKeyboardMarkup(keyboard_done)
+    msg3 = await update.message.reply_text("Have you completed the form?", reply_markup=reply_markup_done)
     track_message(update.effective_chat.id, msg3.message_id)
 
     return STEP2
 
+
+# Step 2: Handle Yes/No
 async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "yes":
-        await query.edit_message_text("Great! Now choose your service unit 👇")
-
-        units = [
-            [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
-            [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
+        msg = await query.edit_message_text("Great! Now choose your service unit 👇")
+        track_message(query.message.chat_id, query.message.message_id)
+    
+    keyboard_units = [
+        [InlineKeyboardButton("BFC⛪", callback_data="bfc"), InlineKeyboardButton("Media📸", callback_data="media")],
+        [InlineKeyboardButton("Living Epistles📜", callback_data="living_epistles"),
             InlineKeyboardButton("True Worshippers🎵", callback_data="true_worshippers")],
-            [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
-            [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
-        ]
-        msg2 = await query.message.reply_text("Select your service unit from below:",
-                                            reply_markup=InlineKeyboardMarkup(units))
-        track_message(query.message.chat_id, msg2.message_id)
+        [InlineKeyboardButton("Welfare💖", callback_data="welfare"), InlineKeyboardButton("Database 📝", callback_data="database")],
+        [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
+    ]
+    reply_markup_units = InlineKeyboardMarkup(keyboard_units)
+    msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
+    track_message(query.message.chat_id, msg2.message_id)
 
-        return STEP3
+    return STEP3
+        # msg = await query.edit_message_text("Please complete the form first before proceeding.")
+        # track_message(query.message.chat_id, query.message.message_id)
+        # asyncio.create_task(delete_all_messages(context, query.message.chat_id))
+        # return ConversationHandler.END
 
+
+# Step 3: Handle service unit selection
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    chosen = query.data.replace("_", " ").title()
-    await query.edit_message_text(f"So you want to join **{chosen}** ✅", parse_mode="Markdown")
+    selection_map = {
+        "bfc": "BFC⛪",
+        "media": "Media📸",
+        "living_epistles": "Living Epistles📜",
+        "true_worshippers": "True Worshippers🎵",
+        "welfare": "Welfare💖",
+        "database": "Database 📝",
+        "follow_up": "Follow Up🤗",
+        "not_sure": "Not sure yet"
+    }
 
-    # Schedule deletion of all chat messages
-    schedule_delete(context, query.message.chat_id)
+    chosen_unit = selection_map.get(query.data, query.data)
+    msg = await query.edit_message_text(f"So you want to join {chosen_unit} ✅")
+    track_message(query.message.chat_id, query.message.message_id)
+
+    asyncio.create_task(delete_all_messages(context, query.message.chat_id))
+
     return ConversationHandler.END
 
+
+
+# --- In cancel function ---
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("Conversation cancelled ❌")
     track_message(update.effective_chat.id, msg.message_id)
-    # Schedule deletion of all chat messages
-    schedule_delete(context, update.effective_chat.id) 
+    asyncio.create_task(delete_all_messages(context, update.effective_chat.id)) # Corrected
     return ConversationHandler.END
 
+# Error handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.warning(f"Update {update} caused error {context.error}")
+    print(f"Update {update} caused error {context.error}")
 
-# --- Flask Keep-Alive ---
-flask_app = Flask(__name__)
+# --- Keep-alive Flask server ---
+flask_app = Flask('')
+
 
 @flask_app.route('/')
 def home():
-    return "Bot is alive!", 200
+    return "Bot is alive!"
+
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port)
+    flask_app.run(host='0.0.0.0', port=8080)
 
-# --- Main ---
+
+threading.Thread(target=run_flask, daemon=True).start()
+
+
+# --- Run Telegram bot ---
 if __name__ == "__main__":
-    # Start Flask in a background thread
-    threading.Thread(target=run_flask, daemon=True).start()
-
-    # Build Telegram bot application
     bot_app = Application.builder().token(TOKEN).build()
 
-    # Add handlers
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
-        states={STEP2: [CallbackQueryHandler(step2)], STEP3: [CallbackQueryHandler(step3)]},
+        states={
+            STEP2: [CallbackQueryHandler(step2)],
+            STEP3: [CallbackQueryHandler(step3)]
+        },
         fallbacks=[CommandHandler("cancel", cancel)],
+        per_chat=True
     )
+
     bot_app.add_handler(conv_handler)
     bot_app.add_error_handler(error)
-
-    # Start polling
-    logger.info("Bot is starting polling...")
     bot_app.run_polling()
