@@ -1,21 +1,28 @@
-from flask import Flask, request
+from flask import Flask
+import threading
 import os
-from telegram import Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, ContextTypes
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import asyncio
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ConversationHandler,
+    ContextTypes,
+)
 
-# --- Environment variables ---
+# --- Environment Variables ---
 TOKEN = os.environ['TOKEN']
 BOT_USERNAME = os.environ['BOT_USERNAME']
 CUET_REGISTRATION_FORM = os.environ['CUET_REGISTRATION_FORM']
 CUET_GC_LINK = os.environ['CUET_GC_LINK']
 
+# --- Constants ---
 STEP2, STEP3 = range(2)
 DELETE_TIMER = 5
 chat_messages = {}
 
-# --- Helper functions ---
+# --- Helper Functions ---
 def track_message(chat_id, message_id):
     chat_messages.setdefault(chat_id, []).append(message_id)
 
@@ -24,11 +31,11 @@ async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int, 
     for msg_id in chat_messages.get(chat_id, []):
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-        except Exception:
+        except:
             pass
     chat_messages.pop(chat_id, None)
 
-# --- Bot logic ---
+# --- Bot Handlers ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg1 = await update.message.reply_text("Hello there😊! You must be aspiring to join CUET😁.")
     track_message(update.effective_chat.id, msg1.message_id)
@@ -44,7 +51,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                            reply_markup=InlineKeyboardMarkup(confirm_btns))
     track_message(update.effective_chat.id, msg3.message_id)
     return STEP2
-
 
 async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -65,19 +71,17 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     msg2 = await query.message.reply_text("Select your service unit from below:",
                                           reply_markup=InlineKeyboardMarkup(units))
-    track_message(query.effective_chat.id, msg2.message_id)
+    track_message(update.effective_chat.id, msg2.message_id)
     return STEP3
-
 
 async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     chosen = query.data.replace("_", " ").title()
     await query.edit_message_text(f"So you want to join **{chosen}** ✅", parse_mode="Markdown")
-    track_message(query.effective_chat.id, query.message.message_id)
+    track_message(update.effective_chat.id, query.message.message_id)
     asyncio.create_task(delete_all_messages(context, query.effective_chat.id))
     return ConversationHandler.END
-
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("Conversation cancelled ❌")
@@ -85,32 +89,34 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     asyncio.create_task(delete_all_messages(context, update.effective_chat.id))
     return ConversationHandler.END
 
+async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(f"Update {update} caused error {context.error}")
 
-# --- Flask setup for webhook ---
-app = Flask(__name__)
-telegram_app = Application.builder().token(TOKEN).build()
+# --- Flask Keep-Alive ---
+flask_app = Flask('')
 
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start_command)],
-    states={STEP2: [CallbackQueryHandler(step2)], STEP3: [CallbackQueryHandler(step3)]},
-    fallbacks=[CommandHandler("cancel", cancel)]
-)
-telegram_app.add_handler(conv_handler)
-
-@app.route("/")
+@flask_app.route('/')
 def home():
-    return "Bot is running!", 200
+    return "Bot is alive!", 200
 
-@app.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
-    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    await telegram_app.process_update(update)
-    return "ok", 200
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host="0.0.0.0", port=port)
 
-
+# --- Run bot ---
 if __name__ == "__main__":
-    telegram_app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000)),
-        webhook_url=f"https://{os.environ.get('RENDER_EXTERNAL_URL', 'your-app.onrender.com')}/{TOKEN}"
+    threading.Thread(target=run_flask).start()  # Start Flask in background
+
+    bot_app = Application.builder().token(TOKEN).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start_command)],
+        states={STEP2: [CallbackQueryHandler(step2)], STEP3: [CallbackQueryHandler(step3)]},
+        fallbacks=[CommandHandler("cancel", cancel)],
+        per_message=True
     )
+
+    bot_app.add_handler(conv_handler)
+    bot_app.add_error_handler(error)
+
+    bot_app.run_polling()  # Start Telegram polling
