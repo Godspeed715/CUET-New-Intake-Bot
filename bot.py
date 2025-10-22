@@ -35,7 +35,6 @@ def track_message(chat_id, message_id):
     chat_messages.setdefault(chat_id, []).append(message_id)
 
 async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    """Deletes all tracked messages in a chat."""
     for msg_id in chat_messages.get(chat_id, []):
         try:
             await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
@@ -44,9 +43,12 @@ async def delete_all_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
     chat_messages.pop(chat_id, None)
 
 def schedule_delete(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    """Schedules deletion using job_queue."""
-    context.job_queue.run_once(lambda ctx: asyncio.create_task(delete_all_messages(context, chat_id)),
-                               when=DELETE_TIMER)
+    """Schedules deletion after DELETE_TIMER seconds using JobQueue."""
+    async def job(ctx: ContextTypes.DEFAULT_TYPE):
+        await delete_all_messages(ctx, chat_id)
+
+    context.job_queue.run_once(job, when=DELETE_TIMER)
+
 
 # --- Bot Handlers ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -101,7 +103,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("Conversation cancelled ❌")
     track_message(update.effective_chat.id, msg.message_id)
     # Schedule deletion of all chat messages
-    schedule_delete(context, update.effective_chat.id)
+    schedule_delete(context, update.effective_chat.id) 
     return ConversationHandler.END
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
