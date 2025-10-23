@@ -103,7 +103,7 @@ async def step2(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("Follow Up🤗", callback_data="follow_up"), InlineKeyboardButton("Not sure yet", callback_data="not_sure")]
         ]
         reply_markup_units = InlineKeyboardMarkup(keyboard_units)
-        msg2 = await query.message.reply_text("Select your service unit from below:", reply_markup=reply_markup_units)
+        msg2 = await query.message.reply_text("Select your sub-unit from below:", reply_markup=reply_markup_units)
         track_message(query.message.chat_id, msg2.message_id)
 
         return STEP3
@@ -138,7 +138,7 @@ async def step3(update: Update, context: ContextTypes.DEFAULT_TYPE):
         buttons.append([InlineKeyboardButton(f"{chosen_unit} Group 👥", url=group_link)])
     
     # Declare message
-    message = f"Finally, join the CUET GC and your subunit GC.\nPs: This chat will delete in 2 mins."  if (group_link) else f"Finally, join the CUET GC and next time join a subunit.\nPs: This chat will delete in 2 mins." 
+    message = f"Finally, join the CUET GC and your sub-unit GC.\nPs: This chat will delete in 2 mins."  if (group_link) else f"Finally, join the CUET GC and next time join a sub-unit.\nPs: This chat will delete in 2 mins." 
 
     # Always add CUET Registration Form button
     buttons.append([InlineKeyboardButton("CUET GC 📝", url=CUET_GC_LINK)])
